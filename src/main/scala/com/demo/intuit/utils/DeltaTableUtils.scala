@@ -61,19 +61,22 @@ private def mergeData(
     updateCondition: Option[String]
 )(implicit spark: SparkSession): Unit = {
     logger.info(s"Starting merge operation on table: $tablePath")
-    
+    logger.info(s"Merging data using the following columns:${df.columns.filter(_ != mergeKey).map { col => (s"$col", s"coalesce(target.$col, source.$col)" )}.toMap}")
     val deltaTable = DeltaTable.forPath(spark, tablePath)
     val mergeBuilder = deltaTable.as("target")
-    .merge(
-        df.as("source"),
-        s"target.$mergeKey = source.$mergeKey"
-    )
-    .whenMatched(updateCondition.getOrElse("true"))
-    .updateAll()
-    .whenNotMatched()
-    .insertAll()
-
+      .merge(
+          df.as("source"),
+          s"target.$mergeKey = source.$mergeKey"
+      )
+      .whenMatched
+      .updateExpr(
+          df.columns.filter(_ != mergeKey).map { col => (s"$col", s"coalesce(source.$col, target.$col)" )}.toMap
+      )
+      .whenNotMatched()
+      .insertAll()
     mergeBuilder.execute()
+      //.whenNotMatchedBySource().delete()
+
     logger.info(s"Successfully completed merge operation on table: $tablePath")
 }
 
