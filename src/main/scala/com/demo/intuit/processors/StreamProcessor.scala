@@ -26,7 +26,7 @@ class StreamProcessor extends DataProcessor {
         // Apply schema to raw data
         rawDF.select(from_json(col("json"), schema).as("data"))
             .select("data.*")
-    }
+    }   
     
     override def process()(implicit spark: SparkSession, config: Config): Unit = {
         val streamDF = readSource
@@ -41,14 +41,15 @@ class StreamProcessor extends DataProcessor {
 
     override protected def writeToTarget(df: DataFrame)(implicit spark: SparkSession, config: Config): Unit = {
         try {
-            log.info(s"Writing streaming data to target table ${config.tablePath}")
-            DeltaTableUtils.writeToTable(
-                df,
-                config.tablePath,
-                config.writeMode,
-                config.mergeKey
-            )
-            log.info("Successfully wrote streaming data to target table")
+            df.writeStream.foreachBatch((batchDF: DataFrame, batchId: Long) => {
+                DeltaTableUtils.writeToTable(
+                    batchDF,
+                    config.tablePath,
+                    "merge",
+                    config.mergeKey,
+                    None
+                )
+            }).start()
         } catch {
             case e: Exception =>
                 log.error(s"Failed to write streaming data to target table: ${e.getMessage}")
