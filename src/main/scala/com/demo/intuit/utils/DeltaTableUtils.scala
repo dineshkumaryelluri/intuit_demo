@@ -70,7 +70,7 @@ private def mergeData(
       )
       .whenMatched
       .updateExpr(
-          df.columns.filter(_ != mergeKey).map { col => (s"$col", s"coalesce(source.$col, target.$col)" )}.toMap
+          df.columns.filter(_ != mergeKey).map { col => (s"$col", if (deltaTable.toDF.columns.contains(col)) s"coalesce(source.$col, target.$col)" else "target.$col" )}.toMap
       )
       .whenNotMatched()
       .insertAll()
