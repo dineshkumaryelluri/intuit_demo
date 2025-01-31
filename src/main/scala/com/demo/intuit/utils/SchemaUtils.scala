@@ -56,7 +56,7 @@ def evolveSchema(df: DataFrame, tablePath: String)(implicit spark: SparkSession)
             logger.info("Applying Delta Lake schema evolution")
             val deltaTable = DeltaTable.forPath(spark, tablePath)
             // Merge schema to enable evolution
-            df.write.mode("overwrite")
+            deltaTable.toDF.write.mode("overwrite")
                 .option("mergeSchema", "true")
                 .format("delta")
                 .save(tablePath)
